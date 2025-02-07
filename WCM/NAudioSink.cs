@@ -1,5 +1,6 @@
 ﻿using NAudio.SoundFont;
 using NAudio.Wave;
+using System.Buffers;
 
 
 namespace WCM;
@@ -19,7 +20,8 @@ public class NAudioSink : ISink
 
     public void Write(float[] signal)
     {
-        float[] completeSignal = new float[preambleStart.Length + signal.Length + preambleStop.Length];
+        float[] completeSignal = ArrayPool<float>.Shared.Rent(preambleStart.Length + signal.Length + preambleStop.Length);
+
         Array.Copy(preambleStart, 0, completeSignal, 0, preambleStart.Length);
         Array.Copy(signal, 0, completeSignal, preambleStart.Length, signal.Length);
         Array.Copy(preambleStop, 0, completeSignal, preambleStart.Length + signal.Length, preambleStop.Length);
@@ -34,6 +36,8 @@ public class NAudioSink : ISink
         {
             System.Threading.Thread.Sleep(1);
         }
+
+        ArrayPool<float>.Shared.Return(completeSignal);
 
     }
 }

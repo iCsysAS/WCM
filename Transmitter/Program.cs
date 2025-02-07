@@ -15,9 +15,6 @@ var preambleStop = modulator.Modulate(Constants.BarkerStop);
 ISink sink = new NAudioSink(sampleRate,preambleStart,preambleStop);
 
 
-
-
-
 byte[] data = [255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0];
 
 var dataBits = data.ToBits();
