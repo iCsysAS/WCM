@@ -55,42 +55,6 @@ public class FSKDemodulator : IDemodulator
         return data;
     }
 
-    public int FindPreamble(float[] signal, float[] preambleSignal)
-    {
-        int searchLength = signal.Length - preambleSignal.Length + 1;
-        double maxCorrelation = double.MinValue;
-        int bestIndex = -1;
-
-        for (int i = 0; i < searchLength; i++)
-        {
-            double correlation = 0.0;
-            for (int j = 0; j < preambleSignal.Length; j++)
-            {
-                correlation += signal[i + j] * preambleSignal[j];
-            }
-            if (correlation > maxCorrelation)
-            {
-                maxCorrelation = correlation;
-                bestIndex = i;
-            }
-        }
-        return bestIndex;
-    }
-
-    public bool[] DemodulateAfterPreamble(float[] signal, float[] preambleSignal, out int preambleStartIndex)
-    {
-        preambleStartIndex = FindPreamble(signal, preambleSignal);
-        if (preambleStartIndex < 0)
-            return null;
-
-        // Determine how many symbols the preamble occupies.
-        int preambleSymbols = preambleSignal.Length / SamplesPerSymbol;
-        int dataStartIndex = preambleStartIndex + preambleSymbols * SamplesPerSymbol;
-        ReadOnlySpan<float> dataSignal = signal.AsSpan().Slice(dataStartIndex);
-
-        return Demodulate(dataSignal);
-    }
-
     /// <summary>
     /// Uses the Goertzel algorithm to compute the energy of the signal at the target frequency.
     /// </summary>

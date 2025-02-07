@@ -1,55 +1,50 @@
-﻿using NAudio.Wave;
+﻿// See https://aka.ms/new-console-template for more information
 using System.Text;
 using WCM;
 
-WaveInEvent waveIn = new WaveInEvent();
-ModulationScheme modulationScheme = ModulationScheme.BPSK;
+double freq0 = 400;
+double freq1 = 600;
+int sampleRate = 48000;
+int samplesPerSymbol = 100;
 
-waveIn.DataAvailable += (sender, e) =>
+CancellationTokenSource cts = new CancellationTokenSource();
+
+IModulator modulator = new FSKModulator(freq0, freq1, sampleRate, samplesPerSymbol);
+var preambleStart = modulator.Modulate(Constants.BarkerStart);
+var preambleStop = modulator.Modulate(Constants.BarkerStop);
+
+IDemodulator demodulator = new FSKDemodulator(freq0, freq1, sampleRate, samplesPerSymbol);
+ISource source = new NAudioSource(sampleRate,0.1f,0,samplesPerSymbol,preambleStart,preambleStop,cts.Token);
+
+
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+Task.Run(() =>
 {
-    float[] audioData = new float[e.BytesRecorded / sizeof(float)];
-    Buffer.BlockCopy(e.Buffer, 0, audioData, 0, e.BytesRecorded);
-
-    byte[] bitstream;
-
-    switch (modulationScheme)
+    while(!cts.Token.IsCancellationRequested)
     {
-        case ModulationScheme.BPSK:
-            bitstream = Modulation.DemodulateBPSK(audioData);
-            break;
-        case ModulationScheme.FSK:
-            bitstream = Modulation.DemodulateFSK(audioData);
-            break;
-        case ModulationScheme.QPSK:
-            bitstream = Modulation.DemodulateQPSK(audioData);
-            break;
-        case ModulationScheme.EightPSK:
-            bitstream = Modulation.Demodulate8PSK(audioData);
-            break;
-        default:
-            throw new Exception("Invalid Modulation Scheme");
-    }
-
-    try
-    {
-        byte[] decodedData = Modulation.DecodeReedSolomon(bitstream);
-
-        if (!Modulation.DetectPreamble(decodedData))
+        float[] signal = source.Read();
+        bool[] bits = demodulator.Demodulate(signal);
+        if(bits == null)
         {
-            Console.WriteLine("Preamble not detected, discarding data.");
-            return;
+            continue;
         }
 
-        byte[] cleanData = Modulation.RemovePreamble(decodedData);
-        string receivedText = Encoding.ASCII.GetString(cleanData);
-        Console.WriteLine($"Received: {receivedText}");
+        for (int i = 0; i < bits.Length; i++)
+        {
+            Console.Write(bits[i] ? "1" : "0");
+            Console.Write(" ");
+        }
 
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Error decoding data: " + ex.Message);
-    }
-};
+        Console.WriteLine();
+        Console.WriteLine(bits.Length);
+        Console.WriteLine();
 
-waveIn.StartRecording();
+        //byte[] bytes = bits.ToBytes();
+        //Console.WriteLine(Encoding.UTF8.GetString(bytes));
+    }
+}, cts.Token);
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+
 Console.ReadLine();
+cts.Cancel();
+
